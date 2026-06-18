@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
+import UpdateBanner from './UpdateBanner';
 
 const NAV_ITEMS = [
   { path: '/', label: 'Dashboard', icon: 'dashboard' },
@@ -64,6 +65,7 @@ export default function Layout({ children }) {
           {children}
         </div>
       </main>
+      <UpdateBanner />
     </div>
   );
 }

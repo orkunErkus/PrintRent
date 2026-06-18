@@ -32,34 +32,46 @@ function buildConfig(database) {
 async function initializeDatabase() {
   const dbName = process.env.DB_NAME || 'printrent';
 
-  const initConn = await mysql.createConnection(buildConfig());
-  await initConn.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
-  await initConn.end();
+  try {
+    pool = mysql.createPool({
+      ...buildConfig(dbName),
+      waitForConnections: true,
+      connectionLimit: 5,
+      queueLimit: 0,
+      enableKeepAlive: true,
+      keepAliveInitialDelay: 10000,
+    });
 
-  pool = mysql.createPool({
-    ...buildConfig(dbName),
-    waitForConnections: true,
-    connectionLimit: 5,
-    queueLimit: 0,
-    enableKeepAlive: true,
-    keepAliveInitialDelay: 10000,
-  });
+    const conn = await pool.getConnection();
+    conn.release();
+  } catch (err) {
+    if (err.code === 'ER_BAD_DB_ERROR') {
+      const initConn = await mysql.createConnection(buildConfig());
+      await initConn.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
+      await initConn.end();
+
+      pool = mysql.createPool({
+        ...buildConfig(dbName),
+        waitForConnections: true,
+        connectionLimit: 5,
+        queueLimit: 0,
+        enableKeepAlive: true,
+        keepAliveInitialDelay: 10000,
+      });
+    } else {
+      throw err;
+    }
+  }
 
   await createTables();
   return pool;
 }
 
-async function indexExists(conn, table, indexName) {
-  const [rows] = await conn.query(
-    'SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND INDEX_NAME = ?',
-    [process.env.DB_NAME || 'printrent', table, indexName]
-  );
-  return rows.length > 0;
-}
-
 async function createIndexIfNotExists(conn, table, indexName, columns) {
-  if (!(await indexExists(conn, table, indexName))) {
+  try {
     await conn.query(`CREATE INDEX \`${indexName}\` ON \`${table}\` (${columns})`);
+  } catch (err) {
+    if (err.errno !== 1061) throw err;
   }
 }
 
