@@ -6,7 +6,7 @@
   "scripts": {
     "build": "cd client && node node_modules/vite/bin/vite.js build",
     "start": "node server/server.js",
-    "postinstall": "cd server && npm install && cd ../client && npm install"
+    "postinstall": "cd server && npm install && cd ../client && npm install --include=dev"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
