@@ -4,13 +4,13 @@
   "private": true,
   "description": "Printer Rental Management System - Remote Printer Monitoring & Tracking",
   "scripts": {
-    "install:all": "cd server && npm install && cd ../client && npm install",
-    "dev:server": "cd server && npm run dev",
-    "dev:client": "cd client && npm run dev",
+    "install:all": "npm --prefix server install && npm --prefix client install",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "build": "cd client && npm run build",
-    "start": "npm run build && cd server && node server.js",
-    "postinstall": "cd server && npm install && cd ../client && npm install && cd ../ && npm run build"
+    "build": "npm --prefix client run build",
+    "start": "npm run build && node server/server.js",
+    "postinstall": "npm --prefix server install && npm --prefix client install && npm run build"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
