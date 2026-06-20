@@ -11,9 +11,11 @@ function PrinterIcon() {
 }
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, register } = useAuth();
+  const [isRegister, setIsRegister] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -21,9 +23,21 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    if (isRegister && password !== confirmPassword) {
+      setError('Sifreler eslesmiyor');
+      return;
+    }
+    if (isRegister && password.length < 4) {
+      setError('Sifre en az 4 karakter olmalidir');
+      return;
+    }
     setLoading(true);
     try {
-      await login(username, password, rememberMe);
+      if (isRegister) {
+        await register(username, password);
+      } else {
+        await login(username, password, rememberMe);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -78,27 +92,65 @@ export default function Login() {
                 onChange={(e) => setPassword(e.target.value)}
                 className="input-field"
                 placeholder="Sifrenizi girin"
-                autoComplete="current-password"
+                autoComplete={isRegister ? 'new-password' : 'current-password'}
               />
             </div>
+
+            {isRegister && (
+              <div>
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
+                  Sifre Tekrar
+                </label>
+                <input
+                  id="confirmPassword"
+                  type="password"
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="input-field"
+                  placeholder="Sifrenizi tekrar girin"
+                  autoComplete="new-password"
+                />
+              </div>
+            )}
           </div>
 
-          <div className="flex items-center">
-            <input
-              id="rememberMe"
-              type="checkbox"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-              className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-            />
-            <label htmlFor="rememberMe" className="ml-2 block text-sm text-gray-700">
-              Beni Hatirla
-            </label>
-          </div>
+          {!isRegister && (
+            <div className="flex items-center">
+              <input
+                id="rememberMe"
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+              />
+              <label htmlFor="rememberMe" className="ml-2 block text-sm text-gray-700">
+                Beni Hatirla
+              </label>
+            </div>
+          )}
 
           <button type="submit" disabled={loading} className="btn-primary w-full">
-            {loading ? 'Giris yapiliyor...' : 'Giris Yap'}
+            {loading ? 'Isleniyor...' : (isRegister ? 'Kayit Ol' : 'Giris Yap')}
           </button>
+
+          <div className="text-center text-sm">
+            {isRegister ? (
+              <span className="text-gray-500">
+                Zaten hesabiniz var mi?{' '}
+                <button type="button" onClick={() => { setIsRegister(false); setError(''); }} className="text-primary-600 hover:underline font-medium">
+                  Giris Yap
+                </button>
+              </span>
+            ) : (
+              <span className="text-gray-500">
+                Hesabiniz yok mu?{' '}
+                <button type="button" onClick={() => { setIsRegister(true); setError(''); }} className="text-primary-600 hover:underline font-medium">
+                  Kayit Ol
+                </button>
+              </span>
+            )}
+          </div>
         </form>
       </div>
     </div>
