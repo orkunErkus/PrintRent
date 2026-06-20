@@ -1,0 +1,32 @@
+const snmp = require('net-snmp');
+const { SNMP_OIDS, SUPPLY_TYPES } = require('../config/snmp-oids');
+
+const SESSION_OPTS = { port: 161, retries: 1, timeout: 3000, backoff: 1.0, version: snmp.Version2c };
+
+function session(ip, c = 'public') { return snmp.createSession(ip, c, SESSION_OPTS); }
+
+function getOID(s, oid) {
+  return new Promise((res, rej) => s.get([oid], (e, v) => { if (e) rej(e); else if (v?.[0]) snmp.isVarbindError(v[0]) ? rej(v[0]) : res(v[0].value); else res(null); }));
+}
+
+function walkOID(s, oid, m = 50) {
+  return new Promise((res, rej) => { const r = []; s.walk(oid, m, (e, v) => { if (e) rej(e); else v.forEach(x => { if (!snmp.isVarbindError(x)) r.push({ oid: x.oid, value: x.value }); }); }, e => e ? rej(e) : res(r)); });
+}
+
+async function collect(ip) {
+  try { const s = session(ip); await getOID(s, SNMP_OIDS.system.description); s.close(); } catch { return { ip, isAlive: false, error: 'SNMP yok' }; }
+  const s = session(ip);
+  try {
+    const [sysInfo, serial] = await Promise.all([
+      (async () => { try { const [d, n, l] = await Promise.all([getOID(s, '1.3.6.1.2.1.1.1.0'), getOID(s, '1.3.6.1.2.1.1.5.0'), getOID(s, '1.3.6.1.2.1.1.6.0')]); return { description: d?.toString(), hostname: n?.toString(), location: l?.toString() }; } catch { return {}; } })(),
+      (async () => { try { let v = await getOID(s, SNMP_OIDS.printer.general.serialNumber); if (v) return v.toString().trim(); for (const o of Object.values(SNMP_OIDS.vendor)) { try { v = await getOID(s, o.serialNumber); if (v?.toString().trim()) return v.toString().trim(); } catch {} } return null; } catch { return null; } })(),
+    ]);
+    const modelInfo = await (async () => { try { const hw = await walkOID(s, SNMP_OIDS.host.deviceDescr); for (const h of hw) { const d = h.value?.toString()?.toLowerCase(); if (d?.includes('print')) return h.value.toString(); } return hw[0]?.value?.toString() || sysInfo.description; } catch { return sysInfo.description; } })();
+    const brand = !modelInfo ? null : (() => { const l = modelInfo.toLowerCase(); const m = [['HP',['hp','hewlett','laserjet','officejet']],['Epson',['epson','stylus','workforce']],['Canon',['canon','pixma','imagerunner']],['Brother',['brother','hl-','dcp-','mfc-']],['Ricoh',['ricoh','aficio']],['Xerox',['xerox','phaser','workcentre']],['Lexmark',['lexmark']],['Kyocera',['kyocera','ecosys']],['Sharp',['sharp','mx-']],['Toshiba',['toshiba','e-studio']],['Panasonic',['panasonic']],['OKI',['oki','okidata']],['Konica Minolta',['konica','minolta','bizhub']]]; for (const [bn, kw] of m) { for (const k of kw) { if (l.includes(k)) return bn; } } return 'Unknown'; })();
+    const toner = await (async () => { try { const [l, m, d, t] = await Promise.all([walkOID(s, SNMP_OIDS.printer.supply.levels), walkOID(s, SNMP_OIDS.printer.supply.maxCapacity), walkOID(s, SNMP_OIDS.printer.supply.description), walkOID(s, SNMP_OIDS.printer.supply.type)]); const sm = new Map(), mm = new Map(); let w; l.forEach(x => sm.set(x.oid.split('.').pop(), x.value)); m.forEach(x => mm.set(x.oid.split('.').pop(), x.value)); const descMap = new Map(), typeMap = new Map(); d.forEach(x => descMap.set(x.oid.split('.').pop(), x.value?.toString() || '')); t.forEach(x => typeMap.set(x.oid.split('.').pop(), x.value)); const tl = {}; for (const [k, v] of sm) { const mx = mm.get(k) || 100, pct = mx > 0 ? Math.round(v / mx * 100) : 0, type = typeMap.get(k), desc = descMap.get(k)?.toLowerCase() || ''; if (type === 3 || type === 5 || type === 6) { if (desc.includes('black') || desc.includes('siyah') || (!desc.includes('cyan') && !desc.includes('magenta') && !desc.includes('yellow') && !Object.keys(tl).length)) { if (!tl.black || tl.black === 0) tl.black = pct; } else if (desc.includes('cyan') || desc.includes('mavi')) tl.cyan = pct; else if (desc.includes('magenta') || desc.includes('kırmızı')) tl.magenta = pct; else if (desc.includes('yellow') || desc.includes('sarı')) tl.yellow = pct; else if (!tl.black) tl.black = pct; } if (type === 4 || type === 8) w = pct; } return { tonerLevels: tl, wasteLevel: w }; } catch { return { tonerLevels: {}, wasteLevel: null }; } })();
+    const pages = await (async () => { try { const mk = await walkOID(s, SNMP_OIDS.printer.marker.lifeCount); let t = 0, bw = 0, c = 0; mk.forEach(x => { const v = typeof x.value === 'number' ? x.value : parseInt(x.value) || 0; t += v; if (x.oid.endsWith('.1')) bw += v; else c += v; }); if (t === 0) { const bo = [SNMP_OIDS.vendor.hp.totalBW, SNMP_OIDS.vendor.brother.totalBW, SNMP_OIDS.vendor.canon.totalBW, SNMP_OIDS.vendor.ricoh.totalBW, SNMP_OIDS.vendor.kyocera.totalBW, SNMP_OIDS.vendor.konicaMinolta.totalBW]; const co = [SNMP_OIDS.vendor.hp.totalColor, SNMP_OIDS.vendor.brother.totalColor, SNMP_OIDS.vendor.canon.totalColor, SNMP_OIDS.vendor.ricoh.totalColor, SNMP_OIDS.vendor.kyocera.totalColor, SNMP_OIDS.vendor.konicaMinolta.totalColor]; const to = [SNMP_OIDS.vendor.epson.totalPages, SNMP_OIDS.vendor.xerox.totalPages, SNMP_OIDS.vendor.lexmark.totalPages, SNMP_OIDS.vendor.sharp.totalPages, SNMP_OIDS.vendor.toshiba.totalPages, SNMP_OIDS.vendor.panasonic.totalPages, SNMP_OIDS.vendor.oki.totalPages]; for (const o of bo) { try { const v = await getOID(s, o); if (v) { bw = parseInt(v) || 0; break; } } catch {} } for (const o of co) { try { const v = await getOID(s, o); if (v) { c = parseInt(v) || 0; break; } } catch {} } t = bw + c; if (t === 0) { for (const o of to) { try { const v = await getOID(s, o); if (v) { t = parseInt(v) || 0; break; } } catch {} } if (t > 0 && bw === 0 && c === 0) bw = t; } } return { totalPages: t, bwPages: bw, colorPages: c }; } catch { return { totalPages: 0, bwPages: 0, colorPages: 0 }; } })();
+    return { ip, isAlive: true, serialNumber: serial, hostname: sysInfo.hostname, location: sysInfo.location, description: sysInfo.description, model: modelInfo, brand, ...toner, ...pages };
+  } catch (e) { return { ip, isAlive: false, error: e.message }; } finally { s.close(); }
+}
+
+module.exports = { collect };

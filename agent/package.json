@@ -1,0 +1,16 @@
+{
+  "name": "printrent-agent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PrintRent Local Scanner Agent",
+  "main": "agent.js",
+  "scripts": {
+    "start": "node agent.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "evilscan": "^1.5.0",
+    "express": "^4.21.0",
+    "net-snmp": "^3.11.0"
+  }
+}

@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import api from '../api';
 import ScanButton from '../components/ScanButton';
 import PrinterTable from '../components/PrinterTable';
+import LocalRedirectCard from '../components/LocalRedirectCard';
 
 function PrinterIcon() {
   return (
@@ -160,6 +161,8 @@ export default function Dashboard() {
           />
         </div>
       )}
+
+      <LocalRedirectCard />
 
       <ScanButton onScanComplete={fetchData} />
 
