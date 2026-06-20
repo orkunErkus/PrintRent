@@ -1,55 +1,16 @@
-import { useState, useEffect } from 'react';
-
-function getLocalIP() {
-  return new Promise((resolve) => {
-    try {
-      const pc = new RTCPeerConnection({ iceServers: [] });
-      pc.createDataChannel('');
-      pc.createOffer().then(offer => pc.setLocalDescription(offer));
-      pc.onicecandidate = (ice) => {
-        if (!ice || !ice.candidate || !ice.candidate.candidate) return;
-        const m = ice.candidate.candidate.match(/(\d+\.\d+\.\d+\.\d+)/);
-        if (m) { pc.close(); resolve(m[1]); }
-      };
-      setTimeout(() => { pc.close(); resolve(null); }, 2000);
-    } catch { resolve(null); }
-  });
-}
-
-function getHostingerBase() {
-  const { protocol, hostname, port } = window.location;
-  return `${protocol}//${hostname}${port ? ':' + port : ''}`;
-}
-
-function isLocalHost(hostname) {
-  return hostname === 'localhost' || hostname === '127.0.0.1';
-}
+import { useState } from 'react';
 
 export default function LocalRedirect() {
-  const [ip, setIp] = useState(null);
-  const [manual, setManual] = useState('');
-  const [mode, setMode] = useState('idle'); // idle | detected | manual
-  const hostingerUrl = getHostingerBase();
+  const [manual, setManual] = useState('192.168.1');
 
-  useEffect(() => {
-    if (!isLocalHost(window.location.hostname)) {
-      getLocalIP().then(found => {
-        if (found) {
-          setIp(found);
-          setMode('detected');
-        } else {
-          setMode('manual');
-        }
-      });
+  const ipParts = manual.split('.').filter(Boolean);
+  const suggestions = [];
+  if (ipParts.length >= 3 && ipParts.length <= 4) {
+    const base = ipParts.slice(0, 3).join('.');
+    for (let i = 1; i <= 5; i++) {
+      suggestions.push(`${base}.${i}`);
     }
-  }, []);
-
-  if (isLocalHost(window.location.hostname)) return null;
-
-  if (mode === 'idle') return null;
-
-  const localUrl = ip ? `http://${ip}:3001` : null;
-  const manualUrl = manual ? `http://${manual}:3001` : null;
+  }
 
   return (
     <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 space-y-4">
@@ -57,61 +18,51 @@ export default function LocalRedirect() {
         <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
         </svg>
-        Yerel Agdaki Yazicilari Taramak Icin
+        Yerel Agdaki Yazicilari Tarama
       </div>
       <p className="text-sm text-amber-700">
-        Bu sayfa bulut sunucusunda calisiyor. Yazicilarin bagli oldugu yerel agdaki
-        bilgisayarda PrintRent Agent calistirin, sonra asagidaki adrese gidin.
+        Bu sayfa bulut sunucusunda calisiyor. Yazicilarin oldugu yerel agdaki
+        bilgisayara gecmek icin IP'sini girin:
       </p>
 
-      {mode === 'detected' && localUrl && (
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-white rounded-lg p-3 border border-amber-200">
-          <div className="flex-1 text-center sm:text-left">
-            <div className="text-xs text-gray-500">Algilanan yerel adres</div>
-            <div className="font-mono font-bold text-amber-900 text-lg">{localUrl}</div>
-          </div>
-          <a
-            href={localUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn-primary text-center px-6 py-2.5 rounded-lg text-sm font-semibold whitespace-nowrap"
-          >
-            Baglan
-          </a>
+      <div className="space-y-2">
+        <input
+          type="text"
+          placeholder="192.168.1.100"
+          value={manual}
+          onChange={e => setManual(e.target.value)}
+          className="input font-mono text-sm w-full"
+        />
+        <div className="flex flex-wrap gap-1.5">
+          {suggestions.map(ip => (
+            <button
+              key={ip}
+              onClick={() => setManual(ip)}
+              className={`px-2 py-1 text-xs rounded font-mono border transition-colors ${
+                manual === ip
+                  ? 'bg-amber-200 border-amber-400 text-amber-900'
+                  : 'bg-white border-amber-200 text-amber-700 hover:bg-amber-100'
+              }`}
+            >
+              {ip}
+            </button>
+          ))}
         </div>
+      </div>
+
+      {manual && (
+        <a
+          href={`http://${manual}:3001`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="btn-primary block text-center px-6 py-2.5 rounded-lg text-sm font-semibold"
+        >
+          http://{manual}:3001 Adresine Git
+        </a>
       )}
 
-      {mode === 'manual' && (
-        <div className="space-y-2">
-          <p className="text-xs text-amber-600 font-medium">
-            Yerel IP otomatik tespit edilemedi. PrintRent Agent'in calistigi
-            bilgisayarin IP'sini girin:
-          </p>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              placeholder="192.168.1.100"
-              value={manual}
-              onChange={e => setManual(e.target.value)}
-              className="input flex-1 font-mono text-sm"
-            />
-            {manualUrl && (
-              <a
-                href={manualUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-primary px-5 py-2 rounded-lg text-sm font-semibold whitespace-nowrap"
-              >
-                Baglan
-              </a>
-            )}
-          </div>
-        </div>
-      )}
-
-      <div className="text-xs text-amber-500 border-t border-amber-200 pt-3 mt-2">
-        Agent'i baslatmak icin: <code className="bg-amber-100 px-1 rounded">start.bat</code> dosyasina cift tiklayin.
-        &nbsp;Alternatif: <code className="bg-amber-100 px-1 rounded">cd agent {'&amp;&amp;'} node agent.js</code>
+      <div className="text-xs text-amber-500 border-t border-amber-200 pt-3">
+        Agent'i baslatmak icin yerel bilgisayarda <code className="bg-amber-100 px-1 rounded">start.bat</code>'a cift tiklayin.
       </div>
     </div>
   );
