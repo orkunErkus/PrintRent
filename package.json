@@ -4,7 +4,8 @@
   "private": true,
   "description": "Printer Rental Management",
   "scripts": {
-    "start": "node server/server.js"
+    "start": "node server/server.js",
+    "build": "echo dist built"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
