@@ -2,10 +2,9 @@
   "name": "printrent",
   "version": "1.0.0",
   "private": true,
-  "description": "Printer Rental Management - Local Agent + Hostinger Server",
+  "description": "Printer Rental Management",
   "scripts": {
-    "agent": "cd agent && npm start",
-    "server": "cd server && npm start",
+    "start": "node server/server.js",
     "build": "cd client && npm run build"
   }
 }

@@ -3,11 +3,8 @@ const router = express.Router();
 const printerService = require('../services/printerService');
 const Printer = require('../models/Printer');
 const ScanHistory = require('../models/ScanHistory');
-const User = require('../models/User');
-const { authMiddleware, adminOnly } = require('../middleware/auth');
-
-router.use('/printers', authMiddleware);
-router.use('/stats', authMiddleware);
+const { validateIPRange, scanSingleHost } = require('../services/networkScanner');
+const { collectAllPrinterData } = require('../services/snmpCollector');
 
 router.get('/status', (req, res) => {
   res.json({ success: true, timestamp: new Date().toISOString(), service: 'PrintRent API', version: '1.0.0' });
@@ -15,16 +12,9 @@ router.get('/status', (req, res) => {
 
 router.get('/printers', async (req, res) => {
   try {
-    let data;
-    if (req.query.search) {
-      data = await Printer.search(req.query.search);
-    } else {
-      data = await printerService.getAllPrintersWithLatestData();
-    }
-    if (req.user.role !== 'admin') {
-      const myIds = await User.getAssignedPrinterIds(req.user.id);
-      data = data.filter(p => myIds.includes(p.id));
-    }
+    const data = req.query.search
+      ? await Printer.search(req.query.search)
+      : await printerService.getAllPrintersWithLatestData();
     res.json({ success: true, data });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
@@ -33,12 +23,6 @@ router.get('/printers/:id', async (req, res) => {
   try {
     const detail = await printerService.getPrinterDetail(parseInt(req.params.id));
     if (!detail) return res.status(404).json({ success: false, error: 'Printer not found' });
-    if (req.user.role !== 'admin') {
-      const myIds = await User.getAssignedPrinterIds(req.user.id);
-      if (!myIds.includes(detail.id)) {
-        return res.status(403).json({ success: false, error: 'Bu yaziciya erisim yetkiniz yok' });
-      }
-    }
     res.json({ success: true, data: detail });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
@@ -53,11 +37,6 @@ router.post('/printers', async (req, res) => {
 
     const printer = await Printer.upsert({ serial_number, ip_address, hostname, brand, model, description, location });
     await ScanHistory.create({ printer_id: printer.id, total_pages: total_pages || 0, bw_pages: bw_pages || 0, color_pages: color_pages || 0, toner_black, toner_cyan, toner_magenta, toner_yellow, is_online: true });
-
-    if (req.user.role !== 'admin') {
-      await User.addPrinterToUser(req.user.id, printer.id);
-    }
-
     res.status(201).json({ success: true, data: printer });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
@@ -84,12 +63,8 @@ router.post('/printers/bulk', async (req, res) => {
         toner_magenta: p.tonerLevels?.magenta, toner_yellow: p.tonerLevels?.yellow,
         toner_waste: p.wasteLevel, is_online: true, raw_data: p,
       });
-      if (req.user.role !== 'admin') {
-        await User.addPrinterToUser(req.user.id, printer.id);
-      }
       created.push(printer);
     }
-
     res.status(201).json({ success: true, message: `${created.length} printers synced`, data: created });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
@@ -98,18 +73,7 @@ router.put('/printers/:id', async (req, res) => {
   try {
     const printer = await Printer.findById(parseInt(req.params.id));
     if (!printer) return res.status(404).json({ success: false, error: 'Printer not found' });
-
-    if (req.user.role !== 'admin') {
-      const myIds = await User.getAssignedPrinterIds(req.user.id);
-      if (!myIds.includes(printer.id)) {
-        return res.status(403).json({ success: false, error: 'Bu yaziciya erisim yetkiniz yok' });
-      }
-    }
-
-    const { serial_number, ip_address, hostname, brand, model, description, location,
-            total_pages, bw_pages, color_pages,
-            toner_black, toner_cyan, toner_magenta, toner_yellow, is_online } = req.body;
-
+    const { serial_number, ip_address, hostname, brand, model, description, location } = req.body;
     await Printer.upsert({
       serial_number: serial_number || printer.serial_number,
       ip_address: ip_address || printer.ip_address,
@@ -119,73 +83,72 @@ router.put('/printers/:id', async (req, res) => {
       description: description !== undefined ? description : printer.description,
       location: location !== undefined ? location : printer.location,
     });
-
     const detail = await printerService.getPrinterDetail(printer.id);
     res.json({ success: true, data: detail });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
 router.delete('/printers/:id', async (req, res) => {
-  try {
-    if (req.user.role !== 'admin') {
-      const myIds = await User.getAssignedPrinterIds(req.user.id);
-      if (!myIds.includes(parseInt(req.params.id))) {
-        return res.status(403).json({ success: false, error: 'Bu yaziciya erisim yetkiniz yok' });
-      }
-    }
-    await Printer.delete(parseInt(req.params.id));
-    res.json({ success: true, message: 'Deleted' });
-  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+  try { await Printer.delete(parseInt(req.params.id)); res.json({ success: true, message: 'Deleted' }); }
+  catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
 router.get('/printers/:id/history', async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
-      const myIds = await User.getAssignedPrinterIds(req.user.id);
-      if (!myIds.includes(parseInt(req.params.id))) {
-        return res.status(403).json({ success: false, error: 'Bu yaziciya erisim yetkiniz yok' });
-      }
-    }
     const data = await ScanHistory.findByPrinterId(parseInt(req.params.id), parseInt(req.query.limit) || 50);
     res.json({ success: true, data });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
+router.post('/scan', async (req, res) => {
+  try {
+    const { range } = req.body;
+    if (!range) return res.status(400).json({ success: false, error: 'Network range required' });
+    if (!validateIPRange(range)) return res.status(400).json({ success: false, error: 'Invalid IP range format' });
+    const result = await printerService.scanNetworkRange(range);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    if (err.message === 'A scan is already in progress') return res.status(409).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/scan/single', async (req, res) => {
+  try {
+    const { ip } = req.body;
+    if (!ip) return res.status(400).json({ success: false, error: 'IP required' });
+    const result = await printerService.scanSinglePrinter(ip);
+    res.json({ success: result.success, data: result });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+router.get('/scan/progress', (req, res) => {
+  res.json({ success: true, ...printerService.getScanProgress() });
+});
+
+router.post('/test-connection', async (req, res) => {
+  try {
+    const { ip } = req.body;
+    if (!ip) return res.status(400).json({ success: false, error: 'IP required' });
+    const hostCheck = await scanSingleHost(ip);
+    let snmpData = null;
+    if (hostCheck.isAlive && hostCheck.ports.includes(161)) snmpData = await collectAllPrinterData(ip);
+    res.json({ success: true, data: { hostCheck, snmp: snmpData } });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
 router.get('/stats', async (req, res) => {
   try {
-    let printerIds = null;
-    if (req.user.role !== 'admin') {
-      printerIds = await User.getAssignedPrinterIds(req.user.id);
-    }
-    const totalCount = printerIds ? printerIds.length : await Printer.getCount();
-    const onlineCount = printerIds
-      ? (await Printer.findByMultipleIds(printerIds)).filter(p => p.is_online).length
-      : await Printer.getOnlineCount();
+    const totalCount = await Printer.getCount();
+    const onlineCount = await Printer.getOnlineCount();
     const scans = await ScanHistory.getLatestForAllPrinters();
-    const filteredScans = printerIds ? scans.filter(s => printerIds.includes(s.printer_id)) : scans;
-    const totalPages = filteredScans.reduce((s, r) => s + (r.total_pages || 0), 0);
-    const totalBW = filteredScans.reduce((s, r) => s + (r.bw_pages || 0), 0);
-    const totalColor = filteredScans.reduce((s, r) => s + (r.color_pages || 0), 0);
+    const totalPages = scans.reduce((s, r) => s + (r.total_pages || 0), 0);
+    const totalBW = scans.reduce((s, r) => s + (r.bw_pages || 0), 0);
+    const totalColor = scans.reduce((s, r) => s + (r.color_pages || 0), 0);
     res.json({ success: true, data: {
       totalPrinters: totalCount, onlinePrinters: onlineCount,
       offlinePrinters: totalCount - onlineCount, totalPages, totalBW, totalColor,
     }});
-  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
-});
-
-router.get('/admin/users', authMiddleware, adminOnly, async (req, res) => {
-  try {
-    const users = await User.findAll();
-    res.json({ success: true, data: users });
-  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
-});
-
-router.get('/admin/printers/all', authMiddleware, adminOnly, async (req, res) => {
-  try {
-    const data = req.query.search
-      ? await Printer.search(req.query.search)
-      : await printerService.getAllPrintersWithLatestData();
-    res.json({ success: true, data });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 

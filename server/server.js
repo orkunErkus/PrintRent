@@ -1,36 +1,14 @@
-const fs = require('fs');
-const path = require('path');
-const bcrypt = require('bcryptjs');
 const app = require('./app');
-const { initialize, closeDatabase, queryOne, insert } = require('./config/database');
-
-try {
-  const envPath = path.join(__dirname, '.env');
-  if (fs.existsSync(envPath)) {
-    for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
-      const trimmed = line.trim();
-      if (trimmed && !trimmed.startsWith('#')) {
-        const eqIdx = trimmed.indexOf('=');
-        if (eqIdx > 0) process.env[trimmed.slice(0, eqIdx).trim()] = trimmed.slice(eqIdx + 1).trim();
-      }
-    }
-  }
-} catch {}
+const { initialize, closeDatabase } = require('./config/database');
 
 const PORT = process.env.PORT || 3000;
 
 initialize()
-  .then(async () => {
-    const adminUser = await queryOne('SELECT id FROM users WHERE username = ?', ['admin']);
-    if (!adminUser) {
-      const hashed = await bcrypt.hash('admin123', 10);
-      await insert('INSERT INTO users (username, password, role) VALUES (?,?,?)', ['admin', hashed, 'admin']);
-      console.log('  Varsayilan admin kullanici olusturuldu (admin / admin123)');
-    }
-    app.listen(PORT, () => {
-      console.log(`\n  🖨️  PrintRent Server (Hostinger)`);
-      console.log(`  ─────────────────────────────`);
-      console.log(`  URL:  http://localhost:${PORT}`);
+  .then(() => {
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`\n  🖨️  PrintRent Server`);
+      console.log(`  ────────────────`);
+      console.log(`  Port: ${PORT}`);
       console.log(`  Mode: ${process.env.NODE_ENV || 'production'}\n`);
     });
   })
