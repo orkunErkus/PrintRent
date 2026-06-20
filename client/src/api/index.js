@@ -1,20 +1,38 @@
 const API_BASE = '/api';
 
-async function request(endpoint, options = {}) {
+function getToken() {
+  return localStorage.getItem('token') || sessionStorage.getItem('token');
+}
+
+async function request(endpoint, options = {}, timeout = 15000) {
   const url = `${API_BASE}${endpoint}`;
-  const config = {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-  };
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+  const headers = { 'Content-Type': 'application/json' };
+  const token = getToken();
+  if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const response = await fetch(url, config);
-  const data = await response.json();
+  try {
+    const response = await fetch(url, {
+      headers,
+      signal: controller.signal,
+      ...options,
+    });
+    const data = await response.json();
 
-  if (!response.ok) {
-    throw new Error(data.error || `HTTP ${response.status}`);
+    if (!response.ok) {
+      throw new Error(data.error || `HTTP ${response.status}`);
+    }
+
+    return data;
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new Error('Sunucu yanit vermedi, lutfen baglantiyi kontrol edin');
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
   }
-
-  return data;
 }
 
 export const api = {
@@ -48,11 +66,23 @@ export const api = {
     request('/test-connection', {
       method: 'POST',
       body: JSON.stringify({ ip }),
-    }),
+    }, 30000),
 
   getStats: () => request('/stats'),
 
   getStatus: () => request('/status'),
+
+  addPrinter: (data) =>
+    request('/printers', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  updatePrinter: (id, data) =>
+    request(`/printers/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
 };
 
 export default api;

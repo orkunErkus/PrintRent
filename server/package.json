@@ -2,21 +2,16 @@
   "name": "printrent-server",
   "version": "1.0.0",
   "private": true,
-  "description": "PrintRent Backend - Network Scanner & SNMP Collector",
+  "description": "PrintRent Backend - MySQL version for Hostinger",
   "main": "server.js",
   "scripts": {
-    "dev": "nodemon server.js",
     "start": "node server.js"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "evilscan": "^1.5.0",
     "express": "^4.21.0",
-    "mysql2": "^3.11.0",
-    "net-snmp": "^3.11.0"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.4"
+    "jsonwebtoken": "^9.0.3",
+    "mysql2": "^3.11.0"
   }
 }

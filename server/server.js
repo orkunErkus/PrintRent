@@ -1,42 +1,43 @@
+const fs = require('fs');
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '.env') });
+const bcrypt = require('bcryptjs');
 const app = require('./app');
-const { initializeDatabase, closeDatabase } = require('./config/database');
+const { initialize, closeDatabase, queryOne, insert } = require('./config/database');
 
-const PORT = process.env.PORT || 3001;
-const isProduction = process.env.NODE_ENV === 'production';
-
-async function main() {
-  try {
-    await initializeDatabase();
-    console.log(`[DB] MySQL connected: ${process.env.DB_HOST || 'localhost'}/${process.env.DB_NAME || 'printrent'}`);
-
-    const server = app.listen(PORT, () => {
-      const mode = isProduction ? 'production' : 'development';
-      console.log(`\n  🖨️  PrintRent Server`);
-      console.log(`  ─────────────────────`);
-      console.log(`  API:     http://0.0.0.0:${PORT}/api`);
-      console.log(`  Mode:    ${mode}`);
-      console.log(`  CORS:    ${process.env.CORS_ORIGIN || 'http://localhost:5173'}\n`);
-    });
-
-    const shutdown = async () => {
-      console.log('\nShutting down gracefully...');
-      await closeDatabase();
-      server.close(() => {
-        console.log('Server closed.');
-        process.exit(0);
-      });
-      setTimeout(() => process.exit(1), 5000);
-    };
-
-    process.on('SIGINT', shutdown);
-    process.on('SIGTERM', shutdown);
-
-  } catch (err) {
-    console.error('[FATAL] Failed to start server:', err);
-    process.exit(1);
+try {
+  const envPath = path.join(__dirname, '.env');
+  if (fs.existsSync(envPath)) {
+    for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
+      const trimmed = line.trim();
+      if (trimmed && !trimmed.startsWith('#')) {
+        const eqIdx = trimmed.indexOf('=');
+        if (eqIdx > 0) process.env[trimmed.slice(0, eqIdx).trim()] = trimmed.slice(eqIdx + 1).trim();
+      }
+    }
   }
-}
+} catch {}
 
-main();
+const PORT = process.env.PORT || 3000;
+
+initialize()
+  .then(async () => {
+    const adminUser = await queryOne('SELECT id FROM users WHERE username = ?', ['admin']);
+    if (!adminUser) {
+      const hashed = await bcrypt.hash('admin123', 10);
+      await insert('INSERT INTO users (username, password, role) VALUES (?,?,?)', ['admin', hashed, 'admin']);
+      console.log('  Varsayilan admin kullanici olusturuldu (admin / admin123)');
+    }
+    app.listen(PORT, () => {
+      console.log(`\n  🖨️  PrintRent Server (Hostinger)`);
+      console.log(`  ─────────────────────────────`);
+      console.log(`  URL:  http://localhost:${PORT}`);
+      console.log(`  Mode: ${process.env.NODE_ENV || 'production'}\n`);
+    });
+  })
+  .catch(err => {
+    console.error('Failed to start:', err);
+    process.exit(1);
+  });
+
+process.on('SIGINT', () => { closeDatabase(); process.exit(0); });
+process.on('SIGTERM', () => { closeDatabase(); process.exit(0); });

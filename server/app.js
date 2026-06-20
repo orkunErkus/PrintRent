@@ -3,26 +3,15 @@ const cors = require('cors');
 const path = require('path');
 
 const apiRoutes = require('./routes/api');
+const authRoutes = require('./routes/auth');
 
 const app = express();
 
-const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173';
-const allowedOrigins = corsOrigin.split(',').map(s => s.trim());
-
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(null, true);
-    }
-  },
-  credentials: true,
-}));
-
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+app.use('/api/auth', authRoutes);
 app.use('/api', apiRoutes);
 
 const clientBuildPath = path.join(__dirname, '..', 'client', 'dist');
@@ -30,6 +19,10 @@ app.use(express.static(clientBuildPath));
 
 app.get(/^\/(?!api).*/, (req, res) => {
   res.sendFile(path.join(clientBuildPath, 'index.html'));
+});
+
+app.use((req, res) => {
+  res.status(404).json({ success: false, error: 'Route not found' });
 });
 
 app.use((err, req, res, next) => {

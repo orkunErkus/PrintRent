@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import UpdateBanner from './UpdateBanner';
 
 const NAV_ITEMS = [
@@ -25,6 +26,7 @@ function DashboardIcon() {
 
 export default function Layout({ children }) {
   const location = useLocation();
+  const { user, logout, isAdmin } = useAuth();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -55,6 +57,26 @@ export default function Layout({ children }) {
                   {item.label}
                 </Link>
               ))}
+              {user && (
+                <div className="flex items-center gap-3 ml-4 pl-4 border-l border-gray-200">
+                  <div className="text-right">
+                    <p className="text-sm font-medium text-gray-900">{user.username}</p>
+                    <p className="text-xs text-gray-500">
+                      {isAdmin ? 'Admin' : 'Kullanici'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={logout}
+                    className="text-sm text-gray-500 hover:text-red-600 transition-colors"
+                    title="Cikis Yap"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

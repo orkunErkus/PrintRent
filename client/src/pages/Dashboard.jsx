@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import api from '../api';
 import ScanButton from '../components/ScanButton';
 import PrinterTable from '../components/PrinterTable';
+import LocalRedirect from '../components/LocalRedirect';
 
 function PrinterIcon() {
   return (
@@ -71,6 +73,7 @@ function StatCard({ icon: Icon, label, value, sub, color = 'primary' }) {
 }
 
 export default function Dashboard() {
+  const { isAdmin } = useAuth();
   const [printers, setPrinters] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -100,9 +103,16 @@ export default function Dashboard() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Dashboard
+            {isAdmin && (
+              <span className="ml-2 text-sm bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium align-middle">
+                Admin
+              </span>
+            )}
+          </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Yazıcı yönetim paneli — Ağınızdaki tüm cihazları izleyin
+            Yazici yonetim paneli — {isAdmin ? 'Tum kullanicilara ait yazicilar' : 'Size ait yazicilar'}
           </p>
         </div>
         <button
@@ -125,32 +135,34 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             icon={PrinterIcon}
-            label="Toplam Yazıcı"
+            label="Toplam Yazici"
             value={stats.totalPrinters}
             color="primary"
           />
           <StatCard
             icon={OnlineIcon}
-            label="Çevrimiçi"
+            label="Cevrimici"
             value={stats.onlinePrinters}
-            sub={`${stats.offlinePrinters} çevrimdışı`}
+            sub={`${stats.offlinePrinters} cevrimdisi`}
             color="green"
           />
           <StatCard
             icon={OfflineIcon}
-            label="Çevrimdışı"
+            label="Cevrimdisi"
             value={stats.offlinePrinters}
             color="red"
           />
           <StatCard
             icon={CounterIcon}
-            label="Toplam Sayaç"
+            label="Toplam Sayac"
             value={stats.totalPages?.toLocaleString() || '0'}
             sub={`S/B: ${stats.totalBW?.toLocaleString() || '0'} | Renkli: ${stats.totalColor?.toLocaleString() || '0'}`}
             color="yellow"
           />
         </div>
       )}
+
+      <LocalRedirect />
 
       <ScanButton onScanComplete={fetchData} />
 

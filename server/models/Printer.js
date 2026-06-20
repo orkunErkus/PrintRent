@@ -1,75 +1,79 @@
-const { query, getRow, execute } = require('../config/database');
+const db = require('../config/database');
 
 class Printer {
   static async findAll() {
-    return query('SELECT * FROM printers ORDER BY last_seen DESC');
+    return db.query('SELECT * FROM printers ORDER BY last_seen DESC');
   }
 
   static async findById(id) {
-    return getRow('SELECT * FROM printers WHERE id = ?', [id]);
+    return db.queryOne('SELECT * FROM printers WHERE id = ?', [id]);
   }
 
   static async findBySerial(serial) {
-    return getRow('SELECT * FROM printers WHERE serial_number = ?', [serial]);
+    return db.queryOne('SELECT * FROM printers WHERE serial_number = ?', [serial]);
   }
 
   static async findByIp(ip) {
-    return getRow('SELECT * FROM printers WHERE ip_address = ?', [ip]);
+    return db.queryOne('SELECT * FROM printers WHERE ip_address = ?', [ip]);
   }
 
-  static async upsert(printerData) {
-    const { serial_number, ip_address, hostname, brand, model, description, location } = printerData;
-
-    const result = await execute(`
-      INSERT INTO printers (serial_number, ip_address, hostname, brand, model, description, location, is_online)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 1)
-      ON DUPLICATE KEY UPDATE
-        ip_address = VALUES(ip_address),
-        hostname = VALUES(hostname),
-        brand = VALUES(brand),
-        model = VALUES(model),
-        description = VALUES(description),
-        location = VALUES(location),
-        last_seen = CURRENT_TIMESTAMP,
-        is_online = 1
-    `, [serial_number, ip_address, hostname || null, brand || null, model || null,
-        description || null, location || null]);
-
-    if (result.insertId) {
-      return this.findById(result.insertId);
+  static async upsert(data) {
+    const { serial_number, ip_address, hostname, brand, model, description, location } = data;
+    const existing = await this.findBySerial(serial_number);
+    if (existing) {
+      await db.query(`UPDATE printers SET ip_address=?, hostname=?, brand=?, model=?,
+        description=?, location=?, last_seen=NOW(), is_online=1 WHERE serial_number=?`,
+        [ip_address, hostname || null, brand || null, model || null, description || null, location || null, serial_number]);
+      return this.findBySerial(serial_number);
     }
-    return this.findBySerial(serial_number);
+    const id = await db.insert(`INSERT INTO printers
+      (serial_number, ip_address, hostname, brand, model, description, location, is_online)
+      VALUES (?,?,?,?,?,?,?,1)`,
+      [serial_number, ip_address, hostname || null, brand || null, model || null, description || null, location || null]);
+    return this.findById(id);
   }
 
   static async markOffline(id) {
-    await execute('UPDATE printers SET is_online = 0 WHERE id = ?', [id]);
+    await db.query('UPDATE printers SET is_online=0 WHERE id=?', [id]);
   }
 
-  static async markOnline(id) {
-    await execute('UPDATE printers SET is_online = 1, last_seen = CURRENT_TIMESTAMP WHERE id = ?', [id]);
+  static async bulkUpsert(printers) {
+    const results = [];
+    for (const p of printers) {
+      const printer = await this.upsert({
+        serial_number: p.serialNumber, ip_address: p.ip, hostname: p.hostname,
+        brand: p.brand, model: p.model ? p.model.substring(0, 255) : null,
+        description: p.description ? p.description.substring(0, 500) : null, location: p.location,
+      });
+      results.push(printer);
+    }
+    return results;
   }
 
   static async delete(id) {
-    await execute('DELETE FROM printers WHERE id = ?', [id]);
+    await db.query('DELETE FROM printers WHERE id=?', [id]);
   }
 
   static async getCount() {
-    const row = await getRow('SELECT COUNT(*) as count FROM printers');
-    return row || { count: 0 };
+    const r = await db.queryOne('SELECT COUNT(*) as count FROM printers');
+    return r.count;
   }
 
   static async getOnlineCount() {
-    const row = await getRow('SELECT COUNT(*) as count FROM printers WHERE is_online = 1');
-    return row || { count: 0 };
+    const r = await db.queryOne('SELECT COUNT(*) as count FROM printers WHERE is_online=1');
+    return r.count;
   }
 
-  static async search(queryStr) {
-    const like = `%${queryStr}%`;
-    return query(`
-      SELECT * FROM printers
-      WHERE serial_number LIKE ? OR ip_address LIKE ? OR brand LIKE ? OR model LIKE ?
-      ORDER BY last_seen DESC
-    `, [like, like, like, like]);
+  static async findByMultipleIds(ids) {
+    if (!ids || ids.length === 0) return [];
+    const placeholders = ids.map(() => '?').join(',');
+    return db.query(`SELECT * FROM printers WHERE id IN (${placeholders})`, ids);
+  }
+
+  static async search(q) {
+    const like = `%${q}%`;
+    return db.query('SELECT * FROM printers WHERE serial_number LIKE ? OR ip_address LIKE ? OR brand LIKE ? OR model LIKE ? ORDER BY last_seen DESC',
+      [like, like, like, like]);
   }
 }
 

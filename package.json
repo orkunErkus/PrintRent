@@ -2,13 +2,10 @@
   "name": "printrent",
   "version": "1.0.0",
   "private": true,
-  "description": "Printer Rental Management System",
+  "description": "Printer Rental Management - Local Agent + Hostinger Server",
   "scripts": {
-    "build": "cd client && node node_modules/vite/bin/vite.js build",
-    "start": "npm run build && node server/server.js",
-    "postinstall": "cd server && npm install && cd ../client && npm install --include=dev"
-  },
-  "devDependencies": {
-    "concurrently": "^8.2.2"
+    "agent": "cd agent && npm start",
+    "server": "cd server && npm start",
+    "build": "cd client && npm run build"
   }
 }
