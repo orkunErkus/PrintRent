@@ -5,9 +5,33 @@ const SUBNETS = ['192.168.1.', '192.168.0.', '10.0.0.', '172.16.0.'];
 export default function LocalRedirectCard() {
   const [prefix, setPrefix] = useState('192.168.1.');
   const [lastOctet, setLastOctet] = useState('');
+  const [showWarning, setShowWarning] = useState(false);
+  const [checking, setChecking] = useState(false);
 
   const fullIp = prefix + lastOctet;
-  const url = fullIp.match(/^\d+\.\d+\.\d+\.\d+$/) ? `http://${fullIp}:3001` : null;
+  const isValid = fullIp.match(/^\d+\.\d+\.\d+\.\d+$/);
+  const url = isValid ? `http://${fullIp}:3001` : null;
+
+  const handleConnect = async () => {
+    if (!url) return;
+    setChecking(true);
+    setShowWarning(false);
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 5000);
+      const res = await fetch(`${url}/api/status`, { signal: controller.signal });
+      clearTimeout(timer);
+      if (res.ok) {
+        window.open(url, '_blank');
+      } else {
+        setShowWarning(true);
+      }
+    } catch {
+      setShowWarning(true);
+    } finally {
+      setChecking(false);
+    }
+  };
 
   return (
     <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
@@ -43,20 +67,33 @@ export default function LocalRedirectCard() {
             onChange={e => setLastOctet(e.target.value.replace(/\D/g, '').slice(0, 3))}
             className="flex-1 outline-none bg-transparent text-amber-900 font-mono"
             maxLength={3}
-            onKeyDown={e => { if (e.key === 'Enter' && url) window.open(url, '_blank'); }}
+            onKeyDown={e => { if (e.key === 'Enter' && url) handleConnect(); }}
           />
         </div>
-        <a href={url || '#'} target="_blank" rel="noopener noreferrer"
-          className={`btn-primary text-sm px-5 py-2 rounded-lg font-semibold whitespace-nowrap inline-flex items-center ${!url ? 'opacity-50 pointer-events-none' : ''}`}
+        <button onClick={handleConnect}
+          disabled={!url || checking}
+          className={`btn-primary text-sm px-5 py-2 rounded-lg font-semibold whitespace-nowrap inline-flex items-center ${(!url || checking) ? 'opacity-50 pointer-events-none' : ''}`}
         >
-          Baglan
-        </a>
+          {checking ? 'Kontrol ediliyor...' : 'Baglan'}
+        </button>
         <a href="/agent/printrent-agent.zip" download
           className="btn-secondary text-sm px-4 py-2 rounded-lg font-semibold whitespace-nowrap inline-flex items-center"
         >
           Agent'i Indir
         </a>
       </div>
+
+      {showWarning && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700 space-y-2">
+          <p className="font-semibold">Bu bilgisayarda PrintRent Agent bulunamadi!</p>
+          <p>Once agent'i indirip calistirin, ardindan tekrar Baglan'a tiklayin.</p>
+          <a href="/agent/printrent-agent.zip" download
+            className="btn-primary text-sm px-4 py-2 rounded-lg inline-block"
+          >
+            Agent'i Indir
+          </a>
+        </div>
+      )}
     </div>
   );
 }
