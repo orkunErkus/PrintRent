@@ -24,6 +24,7 @@ async function initializeSchema() {
     serial_number VARCHAR(255) NOT NULL UNIQUE,
     ip_address VARCHAR(45) NOT NULL,
     hostname VARCHAR(255),
+    name VARCHAR(255),
     brand VARCHAR(100),
     model VARCHAR(255),
     description TEXT,
@@ -34,6 +35,8 @@ async function initializeSchema() {
     INDEX idx_serial (serial_number),
     INDEX idx_ip (ip_address)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
+
+  try { await p.execute('ALTER TABLE printers ADD COLUMN name VARCHAR(255) AFTER hostname'); } catch (e) {}
 
   await p.execute(`CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,

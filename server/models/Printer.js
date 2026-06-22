@@ -18,18 +18,18 @@ class Printer {
   }
 
   static async upsert(data) {
-    const { serial_number, ip_address, hostname, brand, model, description, location } = data;
+    const { serial_number, ip_address, hostname, name, brand, model, description, location } = data;
     const existing = await this.findBySerial(serial_number);
     if (existing) {
-      await db.query(`UPDATE printers SET ip_address=?, hostname=?, brand=?, model=?,
+      await db.query(`UPDATE printers SET ip_address=?, hostname=?, name=?, brand=?, model=?,
         description=?, location=?, last_seen=NOW(), is_online=1 WHERE serial_number=?`,
-        [ip_address, hostname || null, brand || null, model || null, description || null, location || null, serial_number]);
+        [ip_address, hostname || null, name || null, brand || null, model || null, description || null, location || null, serial_number]);
       return this.findBySerial(serial_number);
     }
     const id = await db.insert(`INSERT INTO printers
-      (serial_number, ip_address, hostname, brand, model, description, location, is_online)
-      VALUES (?,?,?,?,?,?,?,1)`,
-      [serial_number, ip_address, hostname || null, brand || null, model || null, description || null, location || null]);
+      (serial_number, ip_address, hostname, name, brand, model, description, location, is_online)
+      VALUES (?,?,?,?,?,?,?,?,1)`,
+      [serial_number, ip_address, hostname || null, name || null, brand || null, model || null, description || null, location || null]);
     return this.findById(id);
   }
 
@@ -41,7 +41,7 @@ class Printer {
     const results = [];
     for (const p of printers) {
       const printer = await this.upsert({
-        serial_number: p.serialNumber, ip_address: p.ip, hostname: p.hostname,
+        serial_number: p.serialNumber, ip_address: p.ip, hostname: p.hostname, name: p.name,
         brand: p.brand, model: p.model ? p.model.substring(0, 255) : null,
         description: p.description ? p.description.substring(0, 500) : null, location: p.location,
       });

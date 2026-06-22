@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import * as XLSX from 'xlsx';
 import StatusBadge from './StatusBadge';
 import TonerBar from './TonerBar';
+import api from '../api';
 
 function ExternalLinkIcon() {
   return (
@@ -17,6 +19,15 @@ function DetailIcon() {
     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
         d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
+
+function ExcelIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
     </svg>
   );
 }
@@ -41,6 +52,8 @@ export default function PrinterTable({ printers = [], loading }) {
   const [sortField, setSortField] = useState('last_seen');
   const [sortDir, setSortDir] = useState('desc');
   const [search, setSearch] = useState('');
+  const [editingName, setEditingName] = useState(null);
+  const [nameDraft, setNameDraft] = useState('');
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -55,7 +68,8 @@ export default function PrinterTable({ printers = [], loading }) {
     .filter(p => {
       if (!search) return true;
       const q = search.toLowerCase();
-      return (p.serial_number || '').toLowerCase().includes(q) ||
+      return (p.name || '').toLowerCase().includes(q) ||
+             (p.serial_number || '').toLowerCase().includes(q) ||
              (p.ip_address || '').includes(q) ||
              (p.brand || '').toLowerCase().includes(q) ||
              (p.model || '').toLowerCase().includes(q);
@@ -66,6 +80,7 @@ export default function PrinterTable({ printers = [], loading }) {
         case 'serial_number': aVal = a.serial_number || ''; bVal = b.serial_number || ''; break;
         case 'brand': aVal = a.brand || ''; bVal = b.brand || ''; break;
         case 'model': aVal = a.model || ''; bVal = b.model || ''; break;
+        case 'name': aVal = (a.name || '').toLowerCase(); bVal = (b.name || '').toLowerCase(); break;
         case 'ip_address': aVal = a.ip_address || ''; bVal = b.ip_address || ''; break;
         case 'total_pages': aVal = a.latestScan?.total_pages || 0; bVal = b.latestScan?.total_pages || 0; break;
         case 'last_seen': default: aVal = a.last_seen || ''; bVal = b.last_seen || ''; break;
@@ -76,6 +91,48 @@ export default function PrinterTable({ printers = [], loading }) {
       return sortDir === 'asc' ? aVal - bVal : bVal - aVal;
     });
 
+  const startEditName = (printer) => {
+    setEditingName(printer.id);
+    setNameDraft(printer.name || '');
+  };
+
+  const saveName = async (printer) => {
+    try {
+      await api.updatePrinter(printer.id, { name: nameDraft });
+      printer.name = nameDraft;
+    } catch (e) {
+      console.error('Name update failed:', e);
+    }
+    setEditingName(null);
+  };
+
+  const cancelEditName = () => {
+    setEditingName(null);
+  };
+
+  const exportToExcel = () => {
+    const data = filtered.map(p => ({
+      'Isim': p.name || '',
+      'Seri No': p.serial_number || '',
+      'Marka': p.brand || '',
+      'Model': p.model || '',
+      'IP Adresi': p.ip_address,
+      'Durum': p.is_online ? 'Cevrimici' : 'Cevrimdisi',
+      'Toplam Sayfa': p.latestScan?.total_pages || 0,
+      'S/B': p.latestScan?.bw_pages || 0,
+      'Renkli': p.latestScan?.color_pages || 0,
+      'Toner Siyah': p.latestScan?.toner_black ?? '',
+      'Toner Cyan': p.latestScan?.toner_cyan ?? '',
+      'Toner Magenta': p.latestScan?.toner_magenta ?? '',
+      'Toner Sari': p.latestScan?.toner_yellow ?? '',
+      'Son Gorulme': p.last_seen || '',
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Yazicilar');
+    XLSX.writeFile(wb, 'yazicilar.xlsx');
+  };
+
   if (loading) {
     return (
       <div className="card">
@@ -85,7 +142,7 @@ export default function PrinterTable({ printers = [], loading }) {
             <path className="opacity-75" fill="currentColor"
               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
           </svg>
-          <span className="ml-3 text-gray-500">Yazıcılar yükleniyor...</span>
+          <span className="ml-3 text-gray-500">Yazicilar yukleniyor...</span>
         </div>
       </div>
     );
@@ -99,9 +156,9 @@ export default function PrinterTable({ printers = [], loading }) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
               d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
           </svg>
-          <h3 className="text-lg font-medium text-gray-900 mb-1">Henüz yazıcı bulunamadı</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-1">Henuz yazici bulunamadi</h3>
           <p className="text-sm text-gray-500 mb-4">
-            Ağ taraması başlatarak yazıcıları keşfedebilirsiniz.
+            Ag taramasi baslatarak yazicilari kesfedebilirsiniz.
           </p>
         </div>
       </div>
@@ -122,16 +179,25 @@ export default function PrinterTable({ printers = [], loading }) {
     <div className="card overflow-hidden">
       <div className="card-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h2 className="text-lg font-semibold text-gray-900">
-          Yazıcılar
+          Yazicilar
           <span className="ml-2 text-sm font-normal text-gray-500">({filtered.length})</span>
         </h2>
-        <input
-          type="text"
-          placeholder="Seri no, IP, marka veya model ile ara..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="input-field max-w-xs"
-        />
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            placeholder="Isim, seri no, IP, marka veya model ile ara..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="input-field max-w-xs"
+          />
+          <button onClick={exportToExcel}
+            className="btn-secondary !px-2.5 !py-1.5 text-xs whitespace-nowrap"
+            title="Excel'e Aktar"
+          >
+            <ExcelIcon />
+            <span className="hidden sm:inline ml-1">Excel</span>
+          </button>
+        </div>
       </div>
 
       <div className="overflow-x-auto">
@@ -139,13 +205,14 @@ export default function PrinterTable({ printers = [], loading }) {
           <thead className="bg-gray-50">
             <tr>
               <SortHeader field="is_online">Durum</SortHeader>
+              <SortHeader field="name">Isim</SortHeader>
               <SortHeader field="serial_number">Seri No</SortHeader>
               <SortHeader field="brand">Marka</SortHeader>
               <SortHeader field="model">Model</SortHeader>
               <SortHeader field="ip_address">IP Adresi</SortHeader>
               <th className="table-header">Toner</th>
-              <SortHeader field="total_pages">Sayaç</SortHeader>
-              <th className="table-header">İşlemler</th>
+              <SortHeader field="total_pages">Sayac</SortHeader>
+              <th className="table-header">Islemler</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-100">
@@ -154,6 +221,29 @@ export default function PrinterTable({ printers = [], loading }) {
                 className="hover:bg-gray-50 transition-colors">
                 <td className="table-cell">
                   <StatusBadge isOnline={printer.is_online} />
+                </td>
+                <td className="table-cell">
+                  {editingName === printer.id ? (
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="text"
+                        value={nameDraft}
+                        onChange={e => setNameDraft(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') saveName(printer); if (e.key === 'Escape') cancelEditName(); }}
+                        className="w-28 text-xs border border-gray-300 rounded px-1 py-0.5 outline-none focus:border-primary-400"
+                        autoFocus
+                      />
+                      <button onClick={() => saveName(printer)} className="text-green-600 hover:text-green-800 text-xs font-bold">✔</button>
+                      <button onClick={cancelEditName} className="text-red-600 hover:text-red-800 text-xs font-bold">✘</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => startEditName(printer)}
+                      className="text-xs text-left text-gray-900 hover:text-primary-600 max-w-[120px] truncate block"
+                      title={printer.name || 'Isim ekle...'}
+                    >
+                      {printer.name || <span className="text-gray-400 italic">Isim ekle</span>}
+                    </button>
+                  )}
                 </td>
                 <td className="table-cell font-mono text-xs font-medium text-gray-900">
                   {printer.serial_number || '—'}
@@ -167,9 +257,13 @@ export default function PrinterTable({ printers = [], loading }) {
                   {printer.model || '—'}
                 </td>
                 <td className="table-cell">
-                  <code className="text-xs bg-gray-100 px-2 py-1 rounded">
+                  <a href={`http://${printer.ip_address}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="text-xs bg-gray-100 px-2 py-1 rounded font-mono text-primary-600 hover:text-primary-800 hover:bg-primary-50 transition-colors"
+                    title="Cihaz arayuzune git"
+                  >
                     {printer.ip_address}
-                  </code>
+                  </a>
                 </td>
                 <td className="table-cell min-w-[200px]">
                   {printer.latestScan ? (
@@ -202,19 +296,10 @@ export default function PrinterTable({ printers = [], loading }) {
                 </td>
                 <td className="table-cell">
                   <div className="flex items-center gap-2">
-                    <a
-                      href={`http://${printer.ip_address}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn-secondary !px-2.5 !py-1.5 text-xs"
-                      title="Cihaz Arayüzüne Git"
-                    >
-                      <ExternalLinkIcon />
-                    </a>
                     <Link
                       to={`/printers/${printer.id}`}
                       className="btn-secondary !px-2.5 !py-1.5 text-xs"
-                      title="Detayları Gör"
+                      title="Detaylari Gor"
                     >
                       <DetailIcon />
                     </Link>

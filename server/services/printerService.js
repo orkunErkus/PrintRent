@@ -46,7 +46,7 @@ async function scanNetworkRange(range) {
         if (data.isAlive && data.serialNumber) {
           const printer = await Printer.upsert({
             serial_number: data.serialNumber, ip_address: data.ip,
-            hostname: data.hostname, brand: data.brand,
+            hostname: data.hostname, name: data.name, brand: data.brand,
             model: data.model ? data.model.substring(0, 255) : null,
             description: data.description ? data.description.substring(0, 500) : null,
             location: data.location,
@@ -91,7 +91,7 @@ async function scanSinglePrinter(ip) {
     if (data.isAlive && data.serialNumber) {
       const printer = await Printer.upsert({
         serial_number: data.serialNumber, ip_address: data.ip,
-        hostname: data.hostname, brand: data.brand,
+        hostname: data.hostname, name: data.name, brand: data.brand,
         model: data.model ? data.model.substring(0, 255) : null,
         description: data.description ? data.description.substring(0, 500) : null,
         location: data.location,
