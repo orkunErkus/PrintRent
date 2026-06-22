@@ -76,11 +76,6 @@ export default function LocalRedirectCard() {
         >
           {checking ? 'Kontrol ediliyor...' : 'Baglan'}
         </button>
-        <a href="/agent/printrent-agent.zip" download
-          className="btn-secondary text-sm px-4 py-2 rounded-lg font-semibold whitespace-nowrap inline-flex items-center"
-        >
-          Agent'i Indir
-        </a>
       </div>
 
       {showWarning && (
