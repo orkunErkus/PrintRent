@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-const SUBNETS = ['192.168.1.', '192.168.0.', '10.0.0.', '172.16.0.'];
+const SUBNETS = ['192.168.1.', '192.168.0.', '10.0.0.', '172.16.0.', '127.0.0.'];
 
 export default function LocalRedirectCard() {
   const [prefix, setPrefix] = useState('192.168.1.');
@@ -31,6 +31,12 @@ export default function LocalRedirectCard() {
     } finally {
       setChecking(false);
     }
+  };
+
+  const handleForceConnect = () => {
+    if (!url) return;
+    window.open(url, '_blank');
+    setShowWarning(false);
   };
 
   return (
@@ -79,14 +85,21 @@ export default function LocalRedirectCard() {
       </div>
 
       {showWarning && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700 space-y-2">
-          <p className="font-semibold">Bu bilgisayarda PrintRent Agent bulunamadi!</p>
-          <p>Once agent'i indirip calistirin, ardindan tekrar Baglan'a tiklayin.</p>
-          <a href="/agent/printrent-agent.zip" download
-            className="btn-primary text-sm px-4 py-2 rounded-lg inline-block"
-          >
-            Agent'i Indir
-          </a>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700 space-y-3">
+          <p className="font-semibold">{fullIp} adresinde PrintRent Agent bulunamadi!</p>
+          <p>Agent calismiyor olabilir veya guvenlik duvari engelliyor olabilir.</p>
+          <div className="flex gap-2">
+            <a href="/agent/printrent-agent.zip" download
+              className="btn-primary text-sm px-4 py-2 rounded-lg inline-block text-center"
+            >
+              Agent'i Indir
+            </a>
+            <button onClick={handleForceConnect}
+              className="btn-secondary text-sm px-4 py-2 rounded-lg font-semibold"
+            >
+              Yine de Baglan
+            </button>
+          </div>
         </div>
       )}
     </div>
