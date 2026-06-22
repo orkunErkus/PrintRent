@@ -15,6 +15,7 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
+  if (request.method !== 'GET') return;
   const url = new URL(request.url);
 
   if (url.pathname.startsWith('/assets/') || /\.(js|css|png|jpg|svg|woff2?)$/.test(url.pathname)) {
