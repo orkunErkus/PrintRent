@@ -42,32 +42,32 @@ export default function Layout({ children }) {
                 Printer Management
               </span>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1 sm:gap-4">
               {NAV_ITEMS.map((item) => (
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     location.pathname === item.path
                       ? 'bg-primary-50 text-primary-700'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                   }`}
                 >
                   <DashboardIcon />
-                  {item.label}
+                  <span className="hidden sm:inline">{item.label}</span>
                 </Link>
               ))}
               {user && (
-                <div className="flex items-center gap-3 ml-4 pl-4 border-l border-gray-200">
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-gray-900">{user.username}</p>
-                    <p className="text-xs text-gray-500">
+                <div className="flex items-center gap-1 sm:gap-3 ml-1 sm:ml-4 pl-1 sm:pl-4 border-l border-gray-200 max-w-[140px] sm:max-w-none">
+                  <div className="text-right truncate">
+                    <p className="text-xs sm:text-sm font-medium text-gray-900 truncate">{user.username}</p>
+                    <p className="hidden sm:text-xs text-gray-500">
                       {isAdmin ? 'Admin' : 'Kullanici'}
                     </p>
                   </div>
                   <button
                     onClick={logout}
-                    className="text-sm text-gray-500 hover:text-red-600 transition-colors"
+                    className="text-sm text-gray-500 hover:text-red-600 transition-colors shrink-0"
                     title="Cikis Yap"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
