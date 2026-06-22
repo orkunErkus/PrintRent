@@ -67,7 +67,7 @@ export default function LocalRedirectCard() {
         ))}
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-2">
+      <div className="flex gap-2">
         <div className="flex-1 flex items-center font-mono text-sm bg-white border border-amber-200 rounded-lg px-3 py-2 min-w-0">
           <input
             type="text"
@@ -87,7 +87,7 @@ export default function LocalRedirectCard() {
         </div>
         <button onClick={handleConnect}
           disabled={!url || checking}
-          className={`btn-primary text-sm px-5 py-2 rounded-lg font-semibold whitespace-nowrap inline-flex items-center justify-center ${(!url || checking) ? 'opacity-50 pointer-events-none' : ''}`}
+          className={`btn-primary text-sm px-4 py-2 rounded-lg font-semibold whitespace-nowrap inline-flex items-center justify-center min-w-[90px] sm:min-w-[100px] ${(!url || checking) ? 'opacity-50 pointer-events-none' : ''}`}
         >
           {checking ? 'Kontrol ediliyor...' : 'Baglan'}
         </button>
