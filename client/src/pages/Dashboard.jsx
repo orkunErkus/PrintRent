@@ -59,14 +59,14 @@ function StatCard({ icon: Icon, label, value, sub, color = 'primary' }) {
   };
 
   return (
-    <div className="card flex items-center gap-4 p-5">
-      <div className={`p-3 rounded-xl ${colorMap[color] || colorMap.primary}`}>
+    <div className="card flex items-center gap-3 sm:gap-4 p-3 sm:p-5">
+      <div className={`p-2 sm:p-3 rounded-xl ${colorMap[color] || colorMap.primary}`}>
         <Icon />
       </div>
-      <div>
-        <p className="text-sm text-gray-500">{label}</p>
-        <p className="text-2xl font-bold text-gray-900">{value}</p>
-        {sub && <p className="text-xs text-gray-400">{sub}</p>}
+      <div className="min-w-0">
+        <p className="text-xs sm:text-sm text-gray-500 truncate">{label}</p>
+        <p className="text-xl sm:text-2xl font-bold text-gray-900">{value}</p>
+        {sub && <p className="text-xs text-gray-400 truncate">{sub}</p>}
       </div>
     </div>
   );
