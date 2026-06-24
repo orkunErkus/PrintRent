@@ -121,7 +121,23 @@ async function getSerialNumber(ip) {
       }
     }
 
-    return null;
+    const walkTables = async () => {
+      const toWalk = [SNMP_OIDS.entity.physicalSerialNum.replace(/\.\d+$/, ''), '1.3.6.1.2.1.43.5.1.1'];
+      for (const base of toWalk) {
+        try {
+          const entries = await walkOID(session, base);
+          for (const e of entries) {
+            const val = e.value?.toString()?.trim();
+            if (val && val.length > 3 && val.length < 64 && !/^[\d\s]+$/.test(val)) {
+              return val;
+            }
+          }
+        } catch {}
+      }
+      return null;
+    };
+
+    return walkTables();
   } finally {
     session.close();
   }
