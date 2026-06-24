@@ -121,18 +121,34 @@ export default function ScanButton({ onScanComplete, defaultRange = '192.168.1.0
           </button>
         </div>
 
-        {isScanning && progress?.total > 0 && (
+        {isScanning && (
           <div className="mt-4">
             <div className="flex justify-between text-xs text-gray-500 mb-1">
-              <span>İlerleme</span>
-              <span>{progress.current} / {progress.total}</span>
+              <span>{progress?.status === 'scanning_network' ? 'Ağ taranıyor...' : 'Veri toplanıyor'}</span>
+              {progress?.total > 0 ? (
+                <span>{progress.current} / {progress.total}</span>
+              ) : (
+                <span className="text-primary-500 animate-pulse">taranıyor...</span>
+              )}
             </div>
-            <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-primary-500 rounded-full transition-all duration-300"
-                style={{ width: `${(progress.current / progress.total) * 100}%` }}
-              />
+            <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden relative">
+              {progress?.total > 0 ? (
+                <div
+                  className="h-full bg-gradient-to-r from-primary-400 to-primary-600 rounded-full transition-all duration-500"
+                  style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                />
+              ) : (
+                <div className="h-full w-full absolute inset-0 overflow-hidden rounded-full">
+                  <div className="h-full w-1/3 rounded-full"
+                    style={{
+                      background: 'linear-gradient(90deg, transparent, #3b82f6, transparent)',
+                      animation: 'indeterminate 1.5s ease-in-out infinite',
+                    }}
+                  />
+                </div>
+              )}
             </div>
+            <style>{`@keyframes indeterminate{0%{transform:translateX(-150%)}100%{transform:translateX(350%)}}`}</style>
           </div>
         )}
 
