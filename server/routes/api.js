@@ -138,6 +138,37 @@ router.post('/test-connection', async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
+router.post('/discover-serial', async (req, res) => {
+  try {
+    const { ip } = req.body;
+    if (!ip) return res.status(400).json({ success: false, error: 'IP required' });
+    const snmp = require('net-snmp');
+    const session = snmp.createSession(ip, 'public', { port: 161, retries: 1, timeout: 3000, backoff: 1.0, version: snmp.Version2c });
+    const walkOID = (oid) => new Promise((resolve) => {
+      const r = [];
+      session.walk(oid, 50, (e, v) => { if (!e) v.forEach(x => { if (!snmp.isVarbindError(x)) r.push({ oid: x.oid, value: x.value?.toString() || null }); }); }, (e) => { resolve(r); });
+    });
+    const trees = [
+      '1.3.6.1.2.1.43.5.1.1',    // Printer MIB serial
+      '1.3.6.1.2.1.47.1.1.1.1',  // entPhysical table
+      '1.3.6.1.4.1.253.8',        // Xerox
+      '1.3.6.1.2.1.1',            // System
+    ];
+    const all = {};
+    for (const tree of trees) {
+      try {
+        const entries = await walkOID(tree);
+        if (entries.length > 0) {
+          const key = tree;
+          all[key] = entries;
+        }
+      } catch {}
+    }
+    session.close();
+    res.json({ success: true, data: all });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
 router.get('/stats', async (req, res) => {
   try {
     const totalCount = await Printer.getCount();

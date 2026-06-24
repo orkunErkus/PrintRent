@@ -62,7 +62,7 @@ async function scanNetworkRange(range) {
 
           results.push({ ip, success: true, serialNumber: data.serialNumber, brand: data.brand, model: data.model });
         } else if (data.isAlive && !data.serialNumber) {
-          results.push({ ip, success: false, error: 'SNMP available but no serial number' });
+          results.push({ ip, success: false, error: 'SNMP yanit verdi ama seri numarasi bulunamadi' });
         } else {
           results.push({ ip, success: false, error: data.error || 'SNMP not available' });
         }

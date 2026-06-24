@@ -13,6 +13,11 @@ const SNMP_OIDS = {
     deviceType: '1.3.6.1.2.1.25.3.2.1.2',
   },
 
+  entity: {
+    physicalSerialNum: '1.3.6.1.2.1.47.1.1.1.1.11',
+    physicalDescr: '1.3.6.1.2.1.47.1.1.1.1.2',
+  },
+
   printer: {
     general: {
       serialNumber: '1.3.6.1.2.1.43.5.1.1.17',
@@ -65,6 +70,9 @@ const SNMP_OIDS = {
     },
     xerox: {
       serialNumber: '1.3.6.1.4.1.253.8.53.1.1.1',
+      serialNumber2: '1.3.6.1.4.1.253.8.53.1.1.2',
+      serialNumber3: '1.3.6.1.4.1.253.8.51.10.2.1.2',
+      serialNumber4: '1.3.6.1.4.1.253.8.52.1.1.1.1',
       totalPages: '1.3.6.1.4.1.253.8.53.1.3.1',
     },
     lexmark: {

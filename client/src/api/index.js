@@ -72,6 +72,12 @@ export const api = {
 
   getStatus: () => request('/status'),
 
+  discoverSerial: (ip) =>
+    request('/discover-serial', {
+      method: 'POST',
+      body: JSON.stringify({ ip }),
+    }, 30000),
+
   addPrinter: (data) =>
     request('/printers', {
       method: 'POST',

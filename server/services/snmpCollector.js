@@ -97,6 +97,9 @@ async function getSerialNumber(ip) {
       { name: 'canon', oid: SNMP_OIDS.vendor.canon.serialNumber },
       { name: 'ricoh', oid: SNMP_OIDS.vendor.ricoh.serialNumber },
       { name: 'xerox', oid: SNMP_OIDS.vendor.xerox.serialNumber },
+      { name: 'xerox2', oid: SNMP_OIDS.vendor.xerox.serialNumber2 },
+      { name: 'xerox3', oid: SNMP_OIDS.vendor.xerox.serialNumber3 },
+      { name: 'xerox4', oid: SNMP_OIDS.vendor.xerox.serialNumber4 },
       { name: 'lexmark', oid: SNMP_OIDS.vendor.lexmark.serialNumber },
       { name: 'kyocera', oid: SNMP_OIDS.vendor.kyocera.serialNumber },
       { name: 'sharp', oid: SNMP_OIDS.vendor.sharp.serialNumber },
@@ -104,6 +107,7 @@ async function getSerialNumber(ip) {
       { name: 'panasonic', oid: SNMP_OIDS.vendor.panasonic.serialNumber },
       { name: 'oki', oid: SNMP_OIDS.vendor.oki.serialNumber },
       { name: 'konicaMinolta', oid: SNMP_OIDS.vendor.konicaMinolta.serialNumber },
+      { name: 'entPhysical', oid: SNMP_OIDS.entity.physicalSerialNum },
     ];
 
     for (const vendor of vendorOIDs) {
